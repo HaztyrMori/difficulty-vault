@@ -239,7 +239,7 @@ function draftStatements(S,sub){
 
 /* ---------- state + helpers ---------- */
 let S=load();
-const UI={axis:'mechanism',openGroup:null,openForm:null,advisor:{answers:{}},jsonPreview:null,mdPreview:'',search:'',cat:'all',draftOutput:null,packetFilter:'pending',pkOpen:new Set()};
+const UI={axis:'mechanism',openGroup:null,openForm:null,advisor:{answers:{}},jsonPreview:null,mdPreview:'',search:'',cat:'all',draftOutput:null,packetFilter:'pending',pkOpen:new Set(),caseId:null,caseViewStep:null,caseSel:null};
 function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify(S));}catch(e){}}
 function load(){
   if(MODE==='public'&&window.DATA&&window.DATA.version===2)return window.DATA;   // production: read-only snapshot written by the pipeline
@@ -516,13 +516,13 @@ Object.assign(ZH,{'From the curator':'来自主理人','By the curator':'主理�
 'Draft and publish your own writing. Ideas captured during review wait below until you turn one into a post.':'起草并发布你自己的文章。审核时记下的碎片在下方等着，直到你把它变成一篇文章。','+ New post':'+ 新文章','Ideas':'碎片','+ Add idea':'+ 记一个碎片','→ Draft post':'→ 起草文章','Body':'正文','Body (Chinese, optional)':'正文（中文，可选）','Title (Chinese, optional)':'标题（中文，可选）','Save post':'保存文章','Referenced mechanisms / outputs (ids, comma-separated)':'引用的机制 / 输出（编号，逗号分隔）','Capture idea':'记下',
 'Every threshold the pipeline uses, in one place. Arbitrary defaults until calibrated; changes are logged.':'流水线用到的所有阈值都在这里。校准前是任意默认值；改动会被记录。','Source weights':'来源权重','Save thresholds':'保存阈值','Reset defaults':'恢复默认','Calibration rule':'校准规则','automate a step when its agreement rate stays ≥':'某一步的一致率连续','for':'轮 ≥','cycles; tighten when it falls below':'时可自动化；低于','then':'时收紧'
 });
-function counts(){return {newSubs:S.submissions.filter(s=>s.status==='new').length,drafted:S.submissions.filter(s=>s.status==='drafted').length,reviewedStmts:reviewedStatements().length,draftStmts:S.statements.filter(s=>s.review_status==='draft').length,ready:S.claims.filter(claimReady).length,drafts:S.outputs.filter(o=>o.status==='draft').length,published:S.outputs.filter(o=>o.status==='published').length,packetOpen:(S.packets[0]&&S.packets[0].status==='open')?S.packets[0].items.filter(i=>!i.decision).length:0};}
+function counts(){return {newSubs:S.submissions.filter(s=>s.status==='new').length,drafted:S.submissions.filter(s=>s.status==='drafted').length,reviewedStmts:reviewedStatements().length,draftStmts:S.statements.filter(s=>s.review_status==='draft').length,ready:S.claims.filter(claimReady).length,drafts:S.outputs.filter(o=>o.status==='draft').length,published:S.outputs.filter(o=>o.status==='published').length,packetOpen:(S.packets[0]&&S.packets[0].status==='open')?S.packets[0].items.filter(i=>!i.decision).length:0,pendingCases:pendingCases().length};}
 function renderWorkbench(p){
   const c=counts();const cur=p[0]||'';
-  const groups=[['Review',[['','Review packet',c.packetOpen],['dashboard','Dashboard','']]],['Browse & edit (rarely needed)',[['inbox','Inbox',c.newSubs+c.drafted],['coding','S1 · Coding',c.draftStmts],['clusters','S2 · Clusters',S.clusters.length],['mapping','S3 · Mapping',c.ready?c.ready+' '+t('ready to graduate'):''],['outputs','S4 · Outputs',c.drafts?c.drafts+' '+t('draft'):'']]],['Library',[['library','Mechanisms & cases','']]],['Writing',[['posts','Posts & ideas',S.postIdeas.length]]],['Release',[['publish','Publish & log','']]],['Reference',[['codebook','Codebook',''],['thresholds','Thresholds','']]],['Simulation',[['sim','Simulation controls','']]]];
+  const groups=[['Review',[['','Case review',c.pendingCases],['dashboard','Dashboard','']]],['Browse & edit (rarely needed)',[['inbox','Inbox',c.newSubs+c.drafted],['coding','S1 · Coding',c.draftStmts],['clusters','S2 · Clusters',S.clusters.length],['mapping','S3 · Mapping',c.ready?c.ready+' '+t('ready to graduate'):''],['outputs','S4 · Outputs',c.drafts?c.drafts+' '+t('draft'):''],['packet','Old review packet (retired)','']]],['Library',[['library','Mechanisms & cases','']]],['Writing',[['posts','Posts & ideas',S.postIdeas.length]]],['Release',[['publish','Publish & log','']]],['Reference',[['codebook','Codebook',''],['thresholds','Thresholds','']]],['Simulation',[['sim','Simulation controls','']]]];
   const side=`<nav class="side">${groups.map(([g,items])=>`<span class="sep">${t(g)}</span>`+items.map(([k,l,n])=>`<a href="#/${k}" class="${cur===k?'active':''}"><span>${t(l)}</span>${n!==''&&n!==0?`<span class="cnt">${n}</span>`:''}</a>`).join('')).join('')}</nav>`;
   let body='';
-  switch(cur){case 'packet':body=cPacket();break;case 'dashboard':body=cDashboard();break;case 'inbox':body=cInbox();break;case 'coding':body=cCoding(p[1]);break;case 'clusters':body=cClusters();break;case 'mapping':body=cMapping();break;case 'outputs':body=cOutputs(p[1]);break;case 'library':body=cLibrary(p[1]);break;case 'posts':body=cPosts(p[1]);break;case 'publish':body=cPublish();break;case 'codebook':body=`<h1>${t('Codebook')}</h1><p class="muted">${t('Coding manual shared by the coder and the curator. Mirrors')} <code>_meta/codebook.md</code> ${t('in the vault.')}</p>${codebookTables()}`;break;case 'thresholds':body=cThresholds();break;case 'sim':body=cSim();break;default:body=cPacket();}
+  switch(cur){case 'packet':body=cPacket();break;case 'dashboard':body=cDashboard();break;case 'inbox':body=cInbox();break;case 'coding':body=cCoding(p[1]);break;case 'clusters':body=cClusters();break;case 'mapping':body=cMapping();break;case 'outputs':body=cOutputs(p[1]);break;case 'library':body=cLibrary(p[1]);break;case 'posts':body=cPosts(p[1]);break;case 'publish':body=cPublish();break;case 'codebook':body=`<h1>${t('Codebook')}</h1><p class="muted">${t('Coding manual shared by the coder and the curator. Mirrors')} <code>_meta/codebook.md</code> ${t('in the vault.')}</p>${codebookTables()}`;break;case 'thresholds':body=cThresholds();break;case 'sim':body=cSim();break;default:body=cCase();}
   return `<div class="curate">${side}<div>${body}</div></div>`;
 }
 function cDashboard(){
@@ -536,6 +536,106 @@ function cDashboard(){
   <div class="section"><h2>${t('Recent changelog')}</h2>${S.changelog.slice(0,5).map(e=>`<p class="small"><code>${e.date}</code> ${esc(e.entry)}</p>`).join('')}</div>`;
 }
 function agreementTable(){const r=agreementRates();const keys=Object.keys(r);if(!keys.length)return `<p class="muted small">${t('No decisions yet.')}</p>`;const th=S.thresholds;return `<table><thead><tr><th>${t('Step')}</th><th>n</th><th>${t('Accepted')}</th><th>${t('Rate')}</th><th></th></tr></thead><tbody>${keys.map(k=>{const x=r[k];const rate=x.acc/x.n;return `<tr><td>${k}</td><td>${x.n}</td><td>${x.acc}</td><td>${Math.round(rate*100)}%</td><td>${rate>=th.automate_agree?`<span class="badge ok">≥ ${Math.round(th.automate_agree*100)}%</span>`:rate<th.tighten_agree?`<span class="badge warn">< ${Math.round(th.tighten_agree*100)}%</span>`:''}</td></tr>`;}).join('')}</tbody></table>`;}
+
+/* ---------- case-by-case review (default workbench view) ----------
+   One submission ("case") at a time, worked through 4 numbered steps in the left rail:
+   1 coding (highlight the text, tag statements) · 2 grouping (S2 cluster) ·
+   3 linking to conclusions (S3 observation) · 4 output draft (S4).
+   Steps 2-4 only ever look at THIS submission's own statements (never cross-submission
+   clustering) — that's a deliberate scope decision, see chat. AI-drafted proposals for a
+   case live directly on the submission object (s2_proposal / s3_proposals / s4_proposal),
+   written by the pipeline script when it codes a new submission; accepting one calls the
+   same applyDecision() used by the old packet flow, so vault-side effects are identical. */
+function caseStageNum(v){return v==='done'?5:(v||1);}
+function caseStage(s){if(s.case_stage)return s.case_stage;return s.status==='reviewed'?'done':1;}
+function setCaseStage(s,v){s.case_stage=v;}
+function pendingCases(){return S.submissions.filter(s=>caseStage(s)!=='done');}
+const CASE_STEP_NAMES=['Coding','Grouping','Linking to conclusions','Output draft'];
+function highlightRawText(raw,stmts){
+  const ranges=[];
+  stmts.forEach(st=>{const ex=st.excerpt||'';if(!ex)return;const idx=raw.indexOf(ex);if(idx<0)return;ranges.push({start:idx,end:idx+ex.length,stmt:st});});
+  ranges.sort((a,b)=>a.start-b.start);
+  const kept=[];let cursor=0;
+  ranges.forEach(r=>{if(r.start>=cursor){kept.push(r);cursor=r.end;}});
+  let html='',pos=0;
+  kept.forEach(r=>{html+=esc(raw.slice(pos,r.start));const sel=UI.caseSel===r.stmt.id?' sel':'';html+=`<mark class="hl ${r.stmt.layer}${sel}" data-action="case-select-stmt" data-stmt="${r.stmt.id}" title="${esc(t(LAYERS[r.stmt.layer]))}">${esc(raw.slice(r.start,r.end))}</mark>`;pos=r.end;});
+  html+=esc(raw.slice(pos));
+  const anchoredIds=new Set(kept.map(r=>r.stmt.id));
+  return {html,unanchored:stmts.filter(st=>!anchoredIds.has(st.id))};
+}
+function caseStmtBadges(st){return `<span class="badge ${st.layer}" title="${esc(t(LAYERS[st.layer]))}">${t(LAYERS[st.layer])}</span><span class="badge ${mech(st.mechanism)?mech(st.mechanism).category:'bad'}">${st.mechanism?esc(mname(st.mechanism)):t('— unassigned —')}</span>${st.dimensions.map(d=>`<span class="badge neutral" title="${esc(t(DIMS[d].clue))}">${t(DIMS[d].name)}</span>`).join('')}<span class="badge ${st.outcome==='success'?'ok':st.outcome==='failure'?'bad':'neutral'}">${t(OUTCOMES[st.outcome])}</span>`;}
+function caseStmtList(stmts,unanchored){
+  if(!stmts.length)return `<p class="muted small">${t('No statements yet. Select some text on the left and mark it as a statement, or the pipeline will draft some for you.')}</p>`;
+  const unanchoredIds=new Set(unanchored.map(s=>s.id));
+  return `<div class="stack">${stmts.map(st=>`<div class="stmt" style="cursor:pointer;${st.review_flag?'border-color:var(--warn)':''}" data-action="case-select-stmt" data-stmt="${st.id}"><p class="txt small">${esc(st.text)}${unanchoredIds.has(st.id)?` <span class="tiny muted">(${t('wording edited — not shown highlighted above')})</span>`:''}</p><div class="meta">${caseStmtBadges(st)}${st.review_flag?`<span class="tiny" style="color:var(--warn)">${t('needs human review')}</span>`:''}</div></div>`).join('')}</div>`;
+}
+function caseStmtEditor(st){
+  const mechOpts=Object.assign({'':'— unassigned —'},...S.mechanisms.map(m=>({[m.id]:L(m,'name')})));
+  return `<div class="row between"><h3 style="margin:0">${t('Statement')}</h3><button class="btn sm" data-action="case-deselect-stmt">${t('Close')}</button></div>
+  <textarea data-stmt="${st.id}" data-field="text" style="min-height:70px;width:100%;margin-top:8px">${esc(st.text)}</textarea>
+  <div class="row" style="gap:6px;margin-top:8px">${selectHtml('layer',LAYERS,st.layer,`data-stmt="${st.id}"`)}${selectHtml('mechanism',mechOpts,st.mechanism,`data-stmt="${st.id}"`)}</div>
+  <div class="chips" style="margin-top:8px">${Object.keys(DIMS).map(k=>`<label class="chip" title="${esc(t(DIMS[k].clue))}"><input type="checkbox" data-stmt="${st.id}" data-field="dimensions" value="${k}" ${st.dimensions.includes(k)?'checked':''}> ${t(DIMS[k].name)}</label>`).join('')}</div>
+  <div class="row" style="gap:6px;margin-top:8px">${selectHtml('stance',STANCES,st.stance,`data-stmt="${st.id}"`)}${selectHtml('outcome',OUTCOMES,st.outcome,`data-stmt="${st.id}"`)}</div>
+  <label class="chip" style="margin-top:8px"><input type="checkbox" data-stmt="${st.id}" data-field="needs_context" ${st.needs_context?'checked':''}> ${t('needs context')}</label>
+  <div class="row between" style="margin-top:12px"><span class="tiny muted">${t('confidence')} ${st.confidence}</span><button class="btn sm danger" data-action="case-del-stmt" data-stmt="${st.id}">${t('Remove')}</button></div>`;
+}
+function cCaseStep1(s){
+  const stmts=S.statements.filter(x=>x.submission_id===s.id);
+  const {html,unanchored}=highlightRawText(s.raw_text||'',stmts);
+  const sel=UI.caseSel&&byId(stmts,UI.caseSel);
+  return `<div class="case-grid">
+    <div class="case-text card">
+      ${s.screenshot_url?`<img src="${esc(s.screenshot_url)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
+      <div class="case-rawtext">${html||`<span class="muted">${t('(no text)')}</span>`}</div>
+      <div class="row between" style="margin-top:12px"><button class="btn sm" data-action="case-add-stmt">${t('Mark selected text as a statement')}</button><span class="tiny muted">${t('Select some text above first')}</span></div>
+    </div>
+    <div class="case-side card">${sel?caseStmtEditor(sel):caseStmtList(stmts,unanchored)}</div>
+  </div>
+  <div class="row between" style="margin-top:14px"><span class="small muted">${stmts.length} ${t('statement(s)')}</span><button class="btn primary" data-action="case-confirm-1">${t('Coding looks right — next: grouping')} →</button></div>`;
+}
+function cCaseStep2(s){
+  const stmts=S.statements.filter(x=>x.submission_id===s.id&&x.review_status==='reviewed');
+  const p=s.s2_proposal;
+  if(!p)return `<div class="notice info">${t('Nothing to group — this case only produced one statement, or the pipeline found no internal pattern worth naming.')}</div><div class="stack" style="margin-top:10px">${stmts.map(stmtChip).join('')}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-action="case-skip-2">${t('Skip — next: linking to conclusions')} →</button></div>`;
+  return `<div class="card"><div class="two"><div class="field"><label>${t('Cluster name')}</label><input type="text" data-casefield="s2.name" value="${esc(p.name)}"></div><div class="field"><label>${t('Confidence')}</label><span class="small">${p.confidence}</span></div></div>
+  <div class="field"><label>${t('Pattern')} <span class="tiny muted">(${t('AI-written from the statements — rewrite if it misses the point')})</span></label><textarea data-casefield="s2.pattern" style="min-height:70px">${esc(p.pattern)}</textarea></div>
+  <div class="stack" style="margin-top:8px">${(p.statement_ids||[]).map(id=>byId(stmts,id)).filter(Boolean).map(stmtChip).join('')}</div></div>
+  <div class="row between" style="margin-top:14px"><div class="row"><button class="btn primary" data-action="case-s2-accept">${t('Accept')}</button><button class="btn danger" data-action="case-s2-reject">${t('Reject')}</button></div><span class="tiny muted">${t('Then')} → ${t('linking to conclusions')}</span></div>`;
+}
+function cCaseStep3(s){
+  const stmts=S.statements.filter(x=>x.submission_id===s.id&&x.review_status==='reviewed');
+  const props=s.s3_proposals||[];
+  if(!props.length)return `<div class="notice info">${t('No claim this case\'s evidence clearly supports or challenges — nothing to link.')}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-action="case-confirm-3">${t('Skip — next: output draft')} →</button></div>`;
+  return `<div class="stack">${props.map((p,idx)=>{const cl=byId(S.claims,p.claim_id);const decided=p.decision;
+    return `<div class="card flat" style="${decided==='accept'?'border-color:var(--ok)':decided==='reject'?'opacity:.55':''}"><div class="row"><code>${p.claim_id}</code> <span class="small">${esc(L(cl||{},'statement'))}</span></div>
+    <div class="two" style="margin-top:6px"><div class="field"><label>${t('Direction')}</label>${decided?`<span class="badge ${p.direction==='supports'?'ok':p.direction==='challenges'?'bad':'info'}">${t(p.direction==='supports'?'Supports':p.direction==='challenges'?'Challenges':'Extends / new phenomenon')}</span>`:selectHtml('direction',{supports:'Supports',challenges:'Challenges',extends:'Extends / new phenomenon'},p.direction,`data-casefield="s3.${idx}.direction"`)}</div><div class="field"><label>${t('Note')}</label>${decided?`<span class="small">${esc(p.note)}</span>`:`<input type="text" data-casefield="s3.${idx}.note" value="${esc(p.note)}">`}</div></div>
+    <div class="stack" style="margin-top:6px">${(p.statement_ids||[]).map(id=>byId(stmts,id)).filter(Boolean).map(stmtChip).join('')}</div>
+    <div class="row" style="margin-top:8px">${decided?`<span class="badge ${decided==='accept'?'ok':'bad'}">${t(decided==='accept'?'accepted':'rejected')}</span>`:`<button class="btn sm primary" data-action="case-s3-decide" data-idx="${idx}" data-d="accept">${t('Accept')}</button><button class="btn sm danger" data-action="case-s3-decide" data-idx="${idx}" data-d="reject">${t('Reject')}</button>`}</div></div>`;}).join('')}</div>
+  <div class="row between" style="margin-top:14px"><span class="small muted">${props.filter(p=>p.decision).length}/${props.length} ${t('items')}</span><button class="btn primary" data-action="case-confirm-3">${t('Next — output draft')} →</button></div>`;
+}
+function cCaseStep4(s){
+  const p=s.s4_proposal;
+  if(!p)return `<div class="notice info">${t('Evidence isn\'t strong enough yet to trigger a principle, pitfall or decision-framework draft — nothing to draft.')}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-action="case-finish">${t('Finish this case')} ✓</button></div>`;
+  const decided=p.decision;
+  return `<div class="card"><div class="two"><div class="field"><label>${t('Type')}</label><span class="badge info">${t(OUT_TYPES[p.type])}</span></div><div class="field"><label>${t('Title')}</label>${decided?esc(p.title):`<input type="text" data-casefield="s4.title" value="${esc(p.title)}">`}</div></div>
+  <div class="field"><label>${t('One-line advice')}</label>${decided?esc(p.advice||''):`<input type="text" data-casefield="s4.advice" value="${esc(p.advice||'')}">`}</div>
+  <p class="tiny muted">${(p.evidence||[]).length} ${t('statements')} · ${(p.mechanisms||[]).map(mname).join(', ')} · ${t('accepted as a draft; publish from S4')}</p>
+  ${decided?`<span class="badge ${decided==='accept'?'ok':'bad'}">${t(decided==='accept'?'accepted':'rejected')}</span>`:`<div class="row"><button class="btn sm primary" data-action="case-s4-decide" data-d="accept">${t('Accept')}</button><button class="btn sm danger" data-action="case-s4-decide" data-d="reject">${t('Reject')}</button></div>`}</div>
+  <div class="row between" style="margin-top:14px"><span></span><button class="btn primary" data-action="case-finish">${t('Finish this case')} ✓</button></div>`;
+}
+function cCase(){
+  const pending=pendingCases();
+  if(!UI.caseId||!sub(UI.caseId)||caseStage(sub(UI.caseId))==='done')UI.caseId=pending[0]?pending[0].id:null;
+  if(!UI.caseId)return `<h1>${t('Case review')}</h1><div class="notice ok">${t('Nothing pending — every submission has been fully processed.')}</div>`;
+  const s=sub(UI.caseId);const stage=caseStage(s);const stageN=caseStageNum(stage);
+  const viewStep=Math.min(UI.caseViewStep||stageN,4);
+  const idx=pending.findIndex(x=>x.id===s.id);
+  const goto=(n,label)=>`<button class="case-rail-step ${viewStep===n?'current':''} ${stageN>n?'done':''} ${stageN<n?'locked':''}" data-action="case-goto" data-n="${n}" ${stageN<n?'disabled':''}><span class="n">${stageN>n?'✓':n}</span> ${t(label)}</button>`;
+  const bodies={1:cCaseStep1,2:cCaseStep2,3:cCaseStep3,4:cCaseStep4};
+  return `<div class="case-topbar"><h1 style="margin:0">${t('Case review')}</h1><div class="row" style="gap:10px;align-items:center"><span class="small muted">${idx+1} / ${pending.length} ${t('pending')}</span><button class="btn sm" data-action="case-nav" data-dir="-1" ${idx<=0?'disabled':''}>← ${t('Prev')}</button><button class="btn sm" data-action="case-nav" data-dir="1" ${idx>=pending.length-1?'disabled':''}>${t('Next')} →</button></div></div>
+  <p class="muted small">${esc(s.game)} · ${t(ROLES[s.contributor_role]||s.contributor_role)} · ${t(CONSENT[s.consent].label)} · <code>${s.id}</code></p>
+  <div class="case-layout"><div class="case-rail">${goto(1,'Coding')}${goto(2,'Grouping')}${goto(3,'Linking to conclusions')}${goto(4,'Output draft')}</div><div>${bodies[viewStep](s)}</div></div>`;
+}
 function cPacket(){
   const pk=S.packets[0];const past=S.packets.slice(1);const c=counts();
   const header=`<div class="row between"><h1 style="margin:0">${t('Review packet')}${pk?` <span class="muted small">${pk.id}</span>`:''}</h1><div class="row">${pk?`<button class="btn" data-action="export-decisions">${t('Export decisions (.json)')}</button><button class="btn" data-action="dl-packet">${t('Download')} packet.json</button>`:''}<label class="btn">${t('Import packet (.json)')} <input type="file" accept="application/json" class="sr" data-action="import-packet"></label><button class="btn primary" data-action="gen-packet">${t('Generate packet (simulated pipeline)')}</button></div></div>
@@ -693,6 +793,7 @@ function cSim(){
 }
 /* ---------- actions ---------- */
 Object.assign(ZH,{'Open the submission form':'打开提交表单','The submission form is being set up. Check back soon.':'提交表单正在搭建中，请稍后再来。','What happens after you submit':'提交之后会发生什么','Early days: the library currently holds demo mechanisms and a handful of coded submissions. Every published output shows how many independent sources stand behind it.':'刚起步：库里目前是示例机制和少量已编码的提交。每条已发布输出都标注了背后有多少独立来源。','Data updated':'数据更新于','Download data.js (site)':'下载 data.js（站点）','Download state.js (workbench)':'下载 state.js（工作台）','Clustering is done by the pipeline: it groups reviewed statements and writes a first pattern sentence. Your job is only to accept or rewrite those sentences in the review packet. This page shows what has been saved, and lets you explore other groupings if you are curious.':'聚类由流水线完成：它把已审陈述分组并写出第一版模式句。你只需要在审核包里接受或改写那句话。这一页显示已保存的聚类，好奇的话也可以按别的轴探索。','proposed clusters are waiting in the':'个提议的聚类正在','Explore other groupings':'探索其他分组','show statements':'显示陈述','The packet is what production Claude would hand you: every proposal from S1 to S4, for you to accept, edit or reject.':'审核包就是正式版 Claude 交给你的东西：S1 到 S4 的每一条提议，供你接受、修改或拒绝。','Step':'步骤','Accepted':'已接受','Rate':'比例','Packet generated':'审核包已生成','Decisions exported':'决定已导出','Packet imported':'审核包已导入','Not a packet file':'不是审核包文件','Idea captured':'碎片已记下','Mechanism saved':'机制已保存','Case saved':'案例已保存','Post saved':'文章已保存','Thresholds saved':'阈值已保存','Thresholds reset':'阈值已恢复默认','No open packet':'没有打开的审核包'});
+Object.assign(ZH,{'Case review':'案例审核','Prev':'上一个','Next':'下一个','Coding':'编码','Grouping':'归组','Linking to conclusions':'关联论断','Output draft':'起草输出','Mark selected text as a statement':'把选中文字标为一条陈述','Select some text above first':'先在上面选中一段文字','(no text)':'（没有文字）','No statements yet. Select some text on the left and mark it as a statement, or the pipeline will draft some for you.':'还没有陈述。在左边选中一段文字标为陈述，或者等流水线帮你起草。','wording edited — not shown highlighted above':'措辞被改过——没有在上面原文里标出','Statement':'陈述','Close':'关闭','Coding looks right — next: grouping':'编码没问题——下一步：归组','statement(s)':'条陈述','Nothing to group — this case only produced one statement, or the pipeline found no internal pattern worth naming.':'没有可归组的内容——这个案例陈述太少，或流水线没找到值得一说的内部规律。','Skip — next: linking to conclusions':'跳过——下一步：关联论断','Then':'然后','linking to conclusions':'关联论断','No claim this case\'s evidence clearly supports or challenges — nothing to link.':'这个案例的证据没有明显支持或挑战哪条论断——没有可关联的。','Skip — next: output draft':'跳过——下一步：起草输出','Next — output draft':'下一步：起草输出',"Evidence isn't strong enough yet to trigger a principle, pitfall or decision-framework draft — nothing to draft.":'证据强度还不够触发原则/避坑/决策框架草稿——没有可起草的。','Finish this case':'完成这个案例','Nothing pending — every submission has been fully processed.':'没有待处理的了——所有提交都已处理完。',"Couldn't find that exact text in the submission — try selecting only from the text above.":'在提交内容里找不到这段文字——请只在上面的原文里选。','Case finished':'案例已完成','Old review packet (retired)':'旧版审核包（已停用）'});
 function approveSubmission(id){const s=sub(id);if(!s)return;S.statements.filter(x=>x.submission_id===id).forEach(x=>{x.review_status='reviewed';x.review_flag=false;});s.status='reviewed';if(!s.data_quality)s.data_quality='medium';}
 function listIds(v){return String(v||'').split(',').map(x=>x.trim()).filter(Boolean);}
 document.addEventListener('click',e=>{
@@ -731,6 +832,19 @@ document.addEventListener('click',e=>{
   if(a==='reset-thresholds'){S.thresholds=JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));logChange('Thresholds reset to defaults.');save();toast(t('Thresholds reset'));render();return;}
   if(a==='advisor-pick'){UI.advisor.answers[el.dataset.key]=el.dataset.v;render();return;}
   if(a==='advisor-reset'){UI.advisor={answers:{}};render();return;}
+  if(a==='case-nav'){const pend=pendingCases();const idx=pend.findIndex(x=>x.id===UI.caseId);const next=pend[idx+ +el.dataset.dir];if(next){UI.caseId=next.id;UI.caseViewStep=null;UI.caseSel=null;render();}return;}
+  if(a==='case-goto'){const n=+el.dataset.n;const s=sub(UI.caseId);if(!s||n>caseStageNum(caseStage(s)))return;UI.caseViewStep=n;UI.caseSel=null;render();return;}
+  if(a==='case-select-stmt'){UI.caseSel=el.dataset.stmt;render();return;}
+  if(a==='case-deselect-stmt'){UI.caseSel=null;render();return;}
+  if(a==='case-del-stmt'){S.statements=S.statements.filter(x=>x.id!==el.dataset.stmt);if(UI.caseSel===el.dataset.stmt)UI.caseSel=null;save();render();return;}
+  if(a==='case-add-stmt'){const s=sub(UI.caseId);if(!s)return;let txt='';try{txt=window.getSelection().toString();}catch(err){}txt=txt.trim();if(!txt){toast(t('Select some text above first'));return;}const raw=s.raw_text||'';if(raw.indexOf(txt)<0){toast(t("Couldn't find that exact text in the submission — try selecting only from the text above."));return;}const n=S.statements.filter(x=>x.submission_id===s.id).length+1;const ns={id:s.id+'.'+n,submission_id:s.id,text:txt,excerpt:txt,lang:hasCJK(txt)?'zh':'en',layer:'M',mechanism:'',dimensions:[],stance:'unknown',outcome:'unstated',alignment:'consistent',needs_context:false,review_flag:false,review_status:'draft',framework_version:S.frameworkVersion,confidence:0.7};S.statements.push(ns);UI.caseSel=ns.id;save();render();return;}
+  if(a==='case-confirm-1'){const s=sub(UI.caseId);if(!s)return;applyDecision({id:'CASE-'+s.id},{step:'S1',ref:s.id,proposal:null},'accept');setCaseStage(s,2);UI.caseViewStep=2;UI.caseSel=null;save();render();return;}
+  if(a==='case-skip-2'||a==='case-s2-reject'){const s=sub(UI.caseId);if(!s)return;s.s2_proposal=null;setCaseStage(s,3);UI.caseViewStep=3;save();render();return;}
+  if(a==='case-s2-accept'){const s=sub(UI.caseId);if(!s||!s.s2_proposal)return;applyDecision({id:'CASE-'+s.id},{step:'S2',ref:s.id,proposal:s.s2_proposal},'accept');s.s2_proposal=null;setCaseStage(s,3);UI.caseViewStep=3;save();render();return;}
+  if(a==='case-confirm-3'){const s=sub(UI.caseId);if(!s)return;setCaseStage(s,4);UI.caseViewStep=4;save();render();return;}
+  if(a==='case-s3-decide'){const s=sub(UI.caseId);if(!s)return;const idx=+el.dataset.idx;const p=(s.s3_proposals||[])[idx];if(!p||p.decision)return;if(el.dataset.d==='accept')applyDecision({id:'CASE-'+s.id},{step:'S3',ref:s.id,proposal:p},'accept');p.decision=el.dataset.d;save();render();return;}
+  if(a==='case-s4-decide'){const s=sub(UI.caseId);if(!s||!s.s4_proposal||s.s4_proposal.decision)return;if(el.dataset.d==='accept')applyDecision({id:'CASE-'+s.id},{step:'S4',ref:s.id,proposal:s.s4_proposal},'accept');s.s4_proposal.decision=el.dataset.d;save();render();return;}
+  if(a==='case-finish'){const s=sub(UI.caseId);if(!s)return;setCaseStage(s,'done');const pend=pendingCases();UI.caseId=pend[0]?pend[0].id:null;UI.caseViewStep=null;UI.caseSel=null;save();toast(t('Case finished'));render();return;}
 });
 document.addEventListener('change',e=>{
   const el=e.target;
@@ -744,8 +858,10 @@ document.addEventListener('change',e=>{
   if(el.dataset.pkitem){const pk=S.packets[0];const it=pk&&pk.items.find(i=>i.id===el.dataset.pkitem);if(it&&!it.decision){it.proposal[el.dataset.pkfield]=el.value;it.edited=true;save();}return;}
   if(el.dataset.sub&&el.dataset.field){const s=sub(el.dataset.sub);if(!s)return;s[el.dataset.field]=el.type==='checkbox'?el.checked:el.value;save();return;}
   if(el.dataset.stmt&&el.dataset.field){const st=stmt(el.dataset.stmt);if(!st)return;const f=el.dataset.field;if(f==='dimensions'){const set=new Set(st.dimensions);el.checked?set.add(el.value):set.delete(el.value);st.dimensions=[...set];}else if(el.type==='checkbox')st[f]=el.checked;else st[f]=el.value;if(f==='mechanism'||f==='layer'){st.review_flag=st.layer==='X'||!st.mechanism;render();}save();return;}
+  if(el.dataset.casefield){caseFieldSet(el.dataset.casefield,el.value);return;}
 });
-document.addEventListener('input',e=>{const el=e.target;if(el.dataset.action==='search'){UI.search=el.value;render();const inp=document.querySelector('[data-action=search]');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}return;}if(el.dataset.stmt&&el.dataset.field==='text'){const st=stmt(el.dataset.stmt);if(st){st.text=el.value;save();}}});
+document.addEventListener('input',e=>{const el=e.target;if(el.dataset.action==='search'){UI.search=el.value;render();const inp=document.querySelector('[data-action=search]');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}return;}if(el.dataset.stmt&&el.dataset.field==='text'){const st=stmt(el.dataset.stmt);if(st){st.text=el.value;save();}}if(el.dataset.casefield){caseFieldSet(el.dataset.casefield,el.value);}});
+function caseFieldSet(path,val){const s=sub(UI.caseId);if(!s)return;const parts=path.split('.');if(parts[0]==='s2'){if(!s.s2_proposal)return;s.s2_proposal[parts[1]]=val;}else if(parts[0]==='s3'){const p=(s.s3_proposals||[])[+parts[1]];if(!p)return;p[parts[2]]=val;}else if(parts[0]==='s4'){if(!s.s4_proposal)return;s.s4_proposal[parts[1]]=val;}save();}
 document.addEventListener('submit',e=>{
   const f=e.target;e.preventDefault();const fd=new FormData(f);const then=e.submitter?.value||'save';
   if(f.id==='contributeForm'){const consent=fd.get('consent');if(consent==='optout'){S.optOutLog.push({date:TODAY(),course_ref:fd.get('course_ref')||'(individual)',received:1,stored:0,optout:1});save();nav('#/contribute/declined');return;}const isCourse=!!(fd.get('course_ref')||'').trim();S.submissions.push({id:newSubId(S),source_type:isCourse?'T1-course':'T1-form',channel:isCourse?'course':'individual',contributor_role:fd.get('role'),game:fd.get('game')||'(unnamed)',genre:fd.get('genre')||'',dev_phase:fd.get('phase'),team_size:fd.get('team'),course_ref:fd.get('course_ref')||'',consent,raw_text:fd.get('text'),received:TODAY(),status:'new',data_quality:'',is_valuable:true});save();nav('#/contribute/thanks');return;}
